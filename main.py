@@ -1,16 +1,3 @@
-from fastapi.middleware.cors import CORSMiddleware
-
-app = FastAPI(title="GALAK · WA Mass Reporter")
-
-# TAMBAHIN INI BIAR VERCE BISA AKSES
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["https://*.vercel.app"], # Atau spesifik domain vercel lo
-    allow_origin_regex=r"https://.*\.vercel\.app",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 # main.py
 import asyncio
 import json
@@ -20,6 +7,7 @@ from typing import List, Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException, Depends, status
 from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -28,14 +16,30 @@ from reporter import ReportEngine
 BASE = Path(__file__).parent
 STATIC = BASE / "static"
 
-# KONFIGURASI LOGIN
+# ==========================================
+# KONFIGURASI LOGIN & KEAMANAN
+# ==========================================
 ALLOWED_EMAIL = "genshinimpectc5@gmail.com"
 DEFAULT_PASSWORD = "GALAK2026!"
 SECRET_KEY = "galak-super-secret-key-ganti-kalo-perlu"
 
 app = FastAPI(title="GALAK · WA Mass Reporter")
+
+# 1. TAMBAH CORS DULUAN (Wajib paling atas biar Vercel bisa akses)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"https://.*\.vercel\.app", # Izinkan semua domain Vercel
+    allow_credentials=True, # Izinkan cookie session lewat
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 2. BARU TAMBAH SESSION (Buat sistem login)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+
+# Mount static (buat akses UI lokal di VPS kalau mau)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
+
 
 class JobConfig(BaseModel):
     target: str
@@ -48,6 +52,7 @@ class JobConfig(BaseModel):
     proxies: str = ""
     accounts: str = ""
     headless: bool = True
+
 
 class AppState:
     def __init__(self):
@@ -71,12 +76,20 @@ class AppState:
 
 state = AppState()
 
+
+# ==========================================
+# MIDDLEWARE AUTH
+# ==========================================
 def verify_auth(request: Request):
     user = request.session.get("user_email")
     if user != ALLOWED_EMAIL:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
     return user
 
+
+# ==========================================
+# ROUTES
+# ==========================================
 @app.get("/")
 async def index(request: Request):
     if request.session.get("user_email") != ALLOWED_EMAIL:
@@ -153,7 +166,7 @@ async def api_stop(user: str = Depends(verify_auth)):
 async def ws_endpoint(ws: WebSocket):
     user = ws.session.get("user_email")
     if user != ALLOWED_EMAIL:
-        await ws.close(code=1008)
+        await ws.close(code=1008) # Close dengan kode Policy Violation
         return
         
     await ws.accept()
