@@ -17,7 +17,7 @@
   }
   .login-box{
     background:var(--panel);border:1px solid var(--border);
-    padding:40px;border-radius:12px;width:100%;max-width:380px;
+    padding:40px;border-radius:12px;width:100%;max-width:400px;
     box-shadow:0 10px 30px rgba(0,0,0,0.5);
   }
   .brand{
@@ -45,6 +45,11 @@
 <body>
 <div class="login-box">
   <div class="brand"><span class="dot"></span> GALAK</div>
+  
+  <div class="field">
+    <label>Backend URL (Link Cloudflare Tunnel)</label>
+    <input type="url" id="backendUrl" placeholder="https://xxxx.trycloudflare.com">
+  </div>
   <div class="field">
     <label>Email</label>
     <input type="email" id="email" placeholder="genshinimpectc5@gmail.com" autocomplete="username">
@@ -53,11 +58,16 @@
     <label>Password</label>
     <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
   </div>
+  
   <button class="btn" id="btnLogin">MASUK</button>
   <div class="error" id="errMsg">Email atau Password salah.</div>
 </div>
 
 <script>
+  // Load URL backend dari memori kalau udah pernah masuk
+  const savedBackend = localStorage.getItem('backendUrl');
+  if (savedBackend) document.getElementById('backendUrl').value = savedBackend;
+
   const btn = document.getElementById('btnLogin');
   const err = document.getElementById('errMsg');
 
@@ -66,25 +76,39 @@
     btn.disabled = true;
     btn.textContent = 'MEMPROSES...';
     
+    let backendUrl = document.getElementById('backendUrl').value.trim();
+    if (!backendUrl) {
+      err.textContent = 'Backend URL wajib diisi!';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'MASUK';
+      return;
+    }
+    // Hapus slash di akhir biar rapi
+    backendUrl = backendUrl.replace(/\/$/, "");
+    
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
 
     try {
-      const res = await fetch('/api/login', {
+      const res = await fetch(`${backendUrl}/api/login`, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
+        credentials: 'include', // PENTING: biar cookie session masuk
         body: JSON.stringify({ email, password })
       });
       const data = await res.json();
+      
       if(data.ok) {
-        window.location.href = '/';
+        localStorage.setItem('backendUrl', backendUrl);
+        window.location.href = '/'; // Pindah ke index
       } else {
         err.style.display = 'block';
         btn.disabled = false;
         btn.textContent = 'MASUK';
       }
     } catch(e) {
-      err.textContent = 'Koneksi error.';
+      err.textContent = 'Gagal konek ke Backend URL. Cek link tunnel lo.';
       err.style.display = 'block';
       btn.disabled = false;
       btn.textContent = 'MASUK';
@@ -97,4 +121,4 @@
   });
 </script>
 </body>
-                       </html>
+</html>
