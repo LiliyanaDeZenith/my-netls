@@ -1,0 +1,22 @@
+version: "3.9"
+services:
+  reporter:
+    build: .
+    container_name: wa-reporter
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./sessions:/app/sessions
+    shm_size: "2gb"
+    environment:
+      - TZ=Asia/Jakarta
+
+  keepalive:
+    image: alpine:latest
+    restart: unless-stopped
+    command: >
+      sh -c "while true; do
+        wget -q -O- https://www.google.com > /dev/null;
+        sleep 300;
+      done"
