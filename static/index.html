@@ -181,6 +181,16 @@
 (function(){
   const $ = (id) => document.getElementById(id);
   const state = { ws: null, running: false, reconnectDelay: 1000, stats: {} };
+  
+  // AMBIL URL BACKEND DARI LOCALSTORAGE
+  const backendUrl = localStorage.getItem('backendUrl');
+  if (!backendUrl) {
+    window.location.href = '/login.html'; // Tendang ke login kalau belum set
+    return;
+  }
+  
+  // Ubah http ke ws
+  const wsUrl = backendUrl.replace(/^http/, 'ws');
 
   function setWsStatus(online){
     const d = $('wsDot');
@@ -188,8 +198,7 @@
   }
 
   function connect(){
-    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    state.ws = new WebSocket(`${proto}//${location.host}/ws`);
+    state.ws = new WebSocket(`${wsUrl}/ws`);
     state.ws.onopen = () => { state.reconnectDelay = 1000; setWsStatus(true); };
     state.ws.onclose = () => {
       setWsStatus(false);
@@ -249,9 +258,13 @@
 
   async function logout() {
     try {
-      await fetch('/api/logout', { method: 'POST' });
-      window.location.href = '/login';
-    } catch(e) { window.location.href = '/login'; }
+      await fetch(`${backendUrl}/api/logout`, { method: 'POST', credentials: 'include' });
+      localStorage.removeItem('backendUrl');
+      window.location.href = '/login.html';
+    } catch(e) { 
+      localStorage.removeItem('backendUrl');
+      window.location.href = '/login.html'; 
+    }
   }
   window.logout = logout;
 
@@ -279,8 +292,11 @@
     const cfg = collectConfig();
     if (cfg.error){ addLog('ERROR', cfg.error); return; }
     try {
-      const res = await fetch('/api/start', {
-        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(cfg),
+      const res = await fetch(`${backendUrl}/api/start`, {
+        method:'POST', 
+        headers:{'Content-Type':'application/json'},
+        credentials: 'include',
+        body: JSON.stringify(cfg),
       });
       const data = await res.json();
       if (data.ok){ setRunning(true); addLog('INFO', 'Job dimulai...'); }
@@ -290,7 +306,10 @@
 
   async function stopJob(){
     try {
-      const res = await fetch('/api/stop', { method:'POST' });
+      const res = await fetch(`${backendUrl}/api/stop`, { 
+        method:'POST',
+        credentials: 'include'
+      });
       const data = await res.json();
       if (data.ok) addLog('WARN', 'Stop diminta. Tunggu step selesai...');
       else addLog('ERROR', data.error || 'gagal stop');
@@ -305,7 +324,7 @@
 
   (async function hydrate(){
     try {
-      const res = await fetch('/api/stats');
+      const res = await fetch(`${backendUrl}/api/stats`, { credentials: 'include' });
       const data = await res.json();
       if (data.stats) updateStats(data.stats);
       if (data.running) setRunning(true);
@@ -316,4 +335,4 @@
 })();
 </script>
 </body>
-                                                </html>
+        </html>
