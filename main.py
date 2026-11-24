@@ -1,3 +1,16 @@
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(title="GALAK · WA Mass Reporter")
+
+# TAMBAHIN INI BIAR VERCE BISA AKSES
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://*.vercel.app"], # Atau spesifik domain vercel lo
+    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # main.py
 import asyncio
 import json
